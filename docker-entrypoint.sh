@@ -4,16 +4,13 @@ set -e
 # Theta Terminal Docker Entrypoint Script
 # Handles credential management and terminal startup
 
-# Flexible path detection
-if [ -f "/opt/theta/ThetaTerminal.jar" ]; then
-    THETA_HOME=${THETA_HOME:-/opt/theta}
-    THETA_CONFIG=${THETA_CONFIG:-/opt/theta/config}
-    THETA_LOGS=${THETA_LOGS:-/opt/theta/logs}
-elif [ -f "/home/theta/terminal/ThetaTerminal.jar" ]; then
-    THETA_HOME=${THETA_HOME:-/home/theta/terminal}
-    THETA_CONFIG=${THETA_CONFIG:-/home/theta/config}
-    THETA_LOGS=${THETA_LOGS:-/home/theta/logs}
-else
+# Set paths
+THETA_HOME=${THETA_HOME:-/opt/theta}
+THETA_CONFIG=${THETA_CONFIG:-/opt/theta/config}
+THETA_LOGS=${THETA_LOGS:-/opt/theta/logs}
+
+# Check if ThetaTerminal.jar exists
+if [ ! -f "${THETA_HOME}/ThetaTerminal.jar" ]; then
     echo "ERROR: ThetaTerminal.jar not found!"
     exit 1
 fi
@@ -31,10 +28,6 @@ usage() {
     echo "  THETA_USERNAME         Your ThetaData username"
     echo "  THETA_PASSWORD         Your ThetaData password"
     echo "  JAVA_OPTS             Java options (default: -Xms1G -Xmx4G)"
-    echo ""
-    echo "Example:"
-    echo "  docker run -it -e THETA_USERNAME=user@email.com -e THETA_PASSWORD=pass thetadata/terminal"
-    echo "  docker run -it -v \$(pwd)/creds.txt:/creds.txt thetadata/terminal --creds-file=/creds.txt"
 }
 
 # Check if help is requested
@@ -44,9 +37,23 @@ if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
 fi
 
 # Create necessary directories
+echo "Creating directories..."
 mkdir -p "${THETA_LOGS}"
-mkdir -p "${HOME}/.theta"
 mkdir -p "${THETA_HOME}/.theta"
+mkdir -p "/root/.theta"
+
+# Ensure FILE_DIR exists
+FILE_DIR="${FILE_DIR:-/root/.theta}"
+echo "Creating FILE_DIR: ${FILE_DIR}"
+mkdir -p "${FILE_DIR}"
+
+# Debug info
+echo "Current user: $(whoami)"
+echo "User ID: $(id -u)"
+echo "Group ID: $(id -g)"
+echo "HOME: ${HOME}"
+echo "THETA_HOME: ${THETA_HOME}"
+echo "FILE_DIR: ${FILE_DIR}"
 
 # Build command
 CMD="java ${JAVA_OPTS} -jar ${THETA_HOME}/ThetaTerminal.jar"
@@ -70,20 +77,10 @@ if [[ "$CREDS_PROVIDED" == false ]]; then
         echo "$THETA_USERNAME" > "$TEMP_CREDS"
         echo "$THETA_PASSWORD" >> "$TEMP_CREDS"
         chmod 600 "$TEMP_CREDS"
-
-        # Add credentials file to command
         CMD="$CMD --creds-file=$TEMP_CREDS"
-
-        # Cleanup function
-        cleanup() {
-            rm -f "$TEMP_CREDS"
-        }
-        trap cleanup EXIT
     elif [[ -n "$THETA_USERNAME" ]] && [[ -z "$THETA_PASSWORD" ]]; then
-        # Username provided but no password - will prompt
         CMD="$CMD $THETA_USERNAME"
     fi
-    # If neither username nor password provided, terminal will prompt
 fi
 
 # Add log directory if not specified
@@ -117,5 +114,44 @@ echo "Command: $CMD"
 echo "=========================================="
 echo ""
 
-# Execute the command
-exec $CMD
+# Function to wait for port to be available
+wait_for_port() {
+    local port=$1
+    local max_attempts=30
+    local attempt=0
+
+    while [ $attempt -lt $max_attempts ]; do
+        if nc -z localhost $port 2>/dev/null; then
+            echo "Port $port is now available"
+            return 0
+        fi
+        attempt=$((attempt + 1))
+        sleep 1
+    done
+
+    echo "Timeout waiting for port $port"
+    return 1
+}
+
+# Start ThetaTerminal
+if command -v socat &> /dev/null; then
+    # Start ThetaTerminal in background
+    $CMD &
+    THETA_PID=$!
+
+    echo "Waiting for ThetaTerminal to start..."
+    # Wait for the HTTP port to be available
+    if wait_for_port 25510; then
+        echo "Starting port forwarders..."
+        socat TCP-LISTEN:25510,fork,reuseaddr,bind=0.0.0.0 TCP:127.0.0.1:25510 &
+        socat TCP-LISTEN:25520,fork,reuseaddr,bind=0.0.0.0 TCP:127.0.0.1:25520 &
+        socat TCP-LISTEN:11000,fork,reuseaddr,bind=0.0.0.0 TCP:127.0.0.1:11000 &
+        socat TCP-LISTEN:10000,fork,reuseaddr,bind=0.0.0.0 TCP:127.0.0.1:10000 &
+    fi
+
+    # Wait for the main process
+    wait $THETA_PID
+else
+    # No socat, just run directly
+    exec $CMD
+fi

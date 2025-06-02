@@ -18,13 +18,16 @@ A professional Docker implementation for ThetaData Terminal that provides cross-
 - Docker installed on your system
 - Docker Compose (optional, for easier management)
 - ThetaData account credentials
-- ThetaTerminal.jar file (download from ThetaData)
+- ThetaTerminal.jar file (download from ThetaData - requires Java 17+)
 
 ### 1. Clone and Setup
 
 ```bash
 git clone https://github.com/userfrm/thetadata-terminal-docker.git
 cd thetadata-terminal-docker
+
+# Create necessary directories
+mkdir -p config logs theta-data
 
 # Download ThetaTerminal.jar and place it in the root directory
 # wget https://download-stable.thetadata.us/
@@ -40,7 +43,7 @@ docker build -t thetadata/terminal .
 
 ```bash
 # Create config directory
-mkdir -p config logs
+mkdir -p config logs theta-data
 
 # Copy default config
 cp config_0.properties config/
@@ -58,12 +61,11 @@ docker run -d \
   --name theta-terminal \
   -p 25510:25510 \
   -p 25520:25520 \
-  -p 11000:11000 \
-  -p 10000:10000 \
   -e THETA_USERNAME="your-email@example.com" \
   -e THETA_PASSWORD="your-password" \
   -v $(pwd)/config:/opt/theta/config \
   -v $(pwd)/logs:/opt/theta/logs \
+  -v $(pwd)/theta-data:/home/theta/.theta \
   thetadata/terminal
 
 # Option 2: With credentials file
@@ -75,11 +77,10 @@ docker run -d \
   --name theta-terminal \
   -p 25510:25510 \
   -p 25520:25520 \
-  -p 11000:11000 \
-  -p 10000:10000 \
   -v $(pwd)/creds.txt:/creds.txt:ro \
   -v $(pwd)/config:/opt/theta/config \
   -v $(pwd)/logs:/opt/theta/logs \
+  -v $(pwd)/theta-data:/home/theta/.theta \
   thetadata/terminal --creds-file=/creds.txt
 ```
 
@@ -91,8 +92,6 @@ docker run -d \
 |------|-------------|----------|
 | 25510 | HTTP REST API | HTTP |
 | 25520 | WebSocket API | WS |
-| 11000 | Python API (MDDS) | TCP |
-| 10000 | Python API (FPSS) | TCP |
 
 ### Environment Variables
 
@@ -100,7 +99,7 @@ docker run -d \
 |----------|-------------|---------|
 | THETA_USERNAME | Your ThetaData username | - |
 | THETA_PASSWORD | Your ThetaData password | - |
-| JAVA_OPTS | Java memory settings | -Xms1G -Xmx4G |
+| JAVA_OPTS | Java memory settings (Java 17+) | -Xms1G -Xmx4G |
 | TZ | Timezone | UTC |
 
 ### Memory Configuration
@@ -165,6 +164,9 @@ curl http://localhost:25510/v1/system/status
 
 # Using Docker
 docker exec theta-terminal curl http://localhost:25510/v1/system/status
+
+# Check if connected to servers
+docker logs theta-terminal | grep "Connected to"
 ```
 
 ## Logs
@@ -177,6 +179,9 @@ docker logs -f theta-terminal
 
 # Saved logs
 ls -la ./logs/
+
+# Check trust/certificate files
+ls -la ./theta-data/
 ```
 
 ## Performance
@@ -189,6 +194,18 @@ Docker adds minimal overhead:
 The dominant latency factor remains the internet connection to ThetaData servers (~50-100ms), not Docker.
 
 ## Troubleshooting
+
+### Java Version Error
+If you see `UnsupportedClassVersionError`:
+- ThetaTerminal requires Java 17 or higher
+- The Docker image uses Java 17 by default
+- Error: "class file version 61.0" = requires Java 17
+
+### File Permission Errors
+If you see `No such file or directory` errors:
+- Ensure all directories are created: `mkdir -p config logs theta-data`
+- Check permissions: `ls -la theta-data/`
+- The container needs to write trust/certificate files
 
 ### Container won't start
 - Check credentials are correct

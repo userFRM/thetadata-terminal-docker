@@ -1,5 +1,4 @@
-version: '3.8'
-
+# Docker Compose configuration for ThetaData Terminal
 services:
   theta-terminal:
     build: .
@@ -11,8 +10,6 @@ services:
     ports:
       - "25510:25510"  # HTTP REST API
       - "25520:25520"  # WebSocket
-      - "11000:11000"  # Python API (MDDS)
-      - "10000:10000"  # Python API (FPSS)
 
     # Performance optimizations (USE WITH CAUTION)
     # privileged: true
@@ -24,14 +21,12 @@ services:
     # ports:
     #   - "25510:25510"
     #   - "25520:25520"
-    #   - "11000:11000"
-    #   - "10000:10000"
 
     # Environment variables
     environment:
       # Option 1: Set credentials via environment variables
-      # THETA_USERNAME: "your-email@example.com"
-      # THETA_PASSWORD: "your-password"
+      THETA_USERNAME: "${THETA_USERNAME}"
+      THETA_PASSWORD: "${THETA_PASSWORD}"
 
       # Java memory settings
       JAVA_OPTS: "-Xms2G -Xmx6G"
@@ -39,14 +34,17 @@ services:
       # Timezone (optional)
       TZ: "America/New_York"
 
+      # Set FILE_DIR to root's home
+      FILE_DIR: "/root/.theta"
+
     # Volumes for persistence
     volumes:
       # Config directory
       - ./config:/opt/theta/config
-
       # Logs directory
       - ./logs:/opt/theta/logs
-
+      # Trust/certificate files - map to root's .theta
+      - ./theta-data:/root/.theta
       # Option 2: Mount credentials file
       # - ./creds.txt:/opt/theta/creds.txt
 
@@ -68,23 +66,20 @@ services:
     image: thetadata/terminal:latest
     container_name: theta-terminal-test
     restart: unless-stopped
-
     ports:
       - "25511:25511"  # Different HTTP port
       - "25521:25521"  # Different WebSocket port
-      - "11001:11001"  # Different MDDS port
-      - "10001:10001"  # Different FPSS port
-
     environment:
+      THETA_USERNAME: "${THETA_USERNAME}"
+      THETA_PASSWORD: "${THETA_PASSWORD}"
       JAVA_OPTS: "-Xms1G -Xmx4G"
       TZ: "America/New_York"
-
+      FILE_DIR: "/root/.theta"
     volumes:
       - ./config:/opt/theta/config
       - ./logs-test:/opt/theta/logs
-
+      - ./theta-data-test:/root/.theta
     # Use config_1.properties for test server
     command: ["--config=/opt/theta/config/config_1.properties"]
-
     # Disable by default - uncomment to enable
     profiles: ["test"]

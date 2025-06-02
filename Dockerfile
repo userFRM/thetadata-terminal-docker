@@ -1,11 +1,6 @@
 # Theta Terminal Docker Image
 # Supports cross-platform deployment (Linux, macOS, Windows)
-
-FROM openjdk:17-slim
-
-# Set build arguments for user
-ARG USER_ID=1001
-ARG USER_GID=1001
+FROM openjdk:24-slim
 
 # Set environment variables
 ENV THETA_VERSION=latest \
@@ -22,10 +17,13 @@ RUN apt-get update && \
     bash \
     tzdata \
     gettext-base \
-    file && \
+    file \
+    socat \
+    netcat-openbsd && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
-    mkdir -p ${THETA_HOME} ${THETA_CONFIG} ${THETA_LOGS}
+    mkdir -p ${THETA_HOME} ${THETA_CONFIG} ${THETA_LOGS} && \
+    mkdir -p ${THETA_HOME}/.theta
 
 # Download ThetaTerminal.jar with verification
 RUN curl -fsSL https://download-stable.thetadata.us/ThetaTerminal.jar -o ${THETA_HOME}/ThetaTerminal.jar && \
@@ -51,21 +49,14 @@ COPY docker-entrypoint.sh /usr/local/bin/
 # Make entrypoint executable
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Create non-root user (handle existing GID/UID)
-RUN groupadd --gid ${USER_GID} theta || echo "Group already exists" && \
-    useradd --uid ${USER_ID} --gid ${USER_GID} --home-dir /home/theta --create-home --shell /bin/bash theta || echo "User already exists" && \
-    # Create necessary directories with proper permissions
-    mkdir -p ${THETA_HOME}/.theta && \
-    mkdir -p /home/theta/.theta && \
-    chown -R ${USER_ID}:${USER_GID} ${THETA_HOME} && \
-    chown -R ${USER_ID}:${USER_GID} /home/theta
+# Create necessary directories with proper permissions
+RUN mkdir -p /root/.theta && \
+    chmod -R 755 ${THETA_HOME}
 
-# Switch to non-root user
-USER ${USER_ID}:${USER_GID}
 WORKDIR ${THETA_HOME}
 
 # Expose all required ports
-EXPOSE 25510 25520 11000 10000
+EXPOSE 25510 25520
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
