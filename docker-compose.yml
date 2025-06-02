@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  theta-terminal:
+    build: .
+    image: thetadata/terminal:latest
+    container_name: theta-terminal
+    restart: unless-stopped
+
+    # Port mapping - host:container
+    ports:
+      - "25510:25510"  # HTTP REST API
+      - "25520:25520"  # WebSocket
+      - "11000:11000"  # Python API (MDDS)
+      - "10000:10000"  # Python API (FPSS)
+
+    # Performance optimizations (USE WITH CAUTION)
+    # privileged: true
+    # network_mode: host
+    # security_opt:
+    #   - seccomp:unconfined
+
+    # Remove port mappings (not needed with host networking)
+    # ports:
+    #   - "25510:25510"
+    #   - "25520:25520"
+    #   - "11000:11000"
+    #   - "10000:10000"
+
+    # Environment variables
+    environment:
+      # Option 1: Set credentials via environment variables
+      # THETA_USERNAME: "your-email@example.com"
+      # THETA_PASSWORD: "your-password"
+
+      # Java memory settings
+      JAVA_OPTS: "-Xms2G -Xmx6G"
+
+      # Timezone (optional)
+      TZ: "America/New_York"
+
+    # Volumes for persistence
+    volumes:
+      # Config directory
+      - ./config:/opt/theta/config
+
+      # Logs directory
+      - ./logs:/opt/theta/logs
+
+      # Option 2: Mount credentials file
+      # - ./creds.txt:/opt/theta/creds.txt
+
+    # Command (customize as needed)
+    command: ["--config=/opt/theta/config/config_0.properties"]
+    # command: ["--creds-file=/opt/theta/creds.txt", "--config=/opt/theta/config/config_0.properties"]
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:25510/v1/system/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Example: Multiple terminal instances
+  theta-terminal-test:
+    build: .
+    image: thetadata/terminal:latest
+    container_name: theta-terminal-test
+    restart: unless-stopped
+
+    ports:
+      - "25511:25511"  # Different HTTP port
+      - "25521:25521"  # Different WebSocket port
+      - "11001:11001"  # Different MDDS port
+      - "10001:10001"  # Different FPSS port
+
+    environment:
+      JAVA_OPTS: "-Xms1G -Xmx4G"
+      TZ: "America/New_York"
+
+    volumes:
+      - ./config:/opt/theta/config
+      - ./logs-test:/opt/theta/logs
+
+    # Use config_1.properties for test server
+    command: ["--config=/opt/theta/config/config_1.properties"]
+
+    # Disable by default - uncomment to enable
+    profiles: ["test"]

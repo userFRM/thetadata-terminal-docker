@@ -1,0 +1,63 @@
+# ThetaData Terminal files
+ThetaTerminal.jar
+*.jar
+
+# Credentials - NEVER commit these!
+creds.txt
+credentials.txt
+*.creds
+.env
+.env.*
+
+# Logs
+logs/
+*.log
+*.out
+*.err
+
+# Configuration (if contains sensitive data)
+config/*.properties
+!config/config_0.properties
+!config/config_1.properties
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+.project
+.classpath
+.settings/
+
+# Docker
+.docker/
+*.pid
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+env/
+ENV/
+
+# Node (if using for testing)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
