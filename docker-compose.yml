@@ -10,6 +10,8 @@ services:
     ports:
       - "25510:25510"  # HTTP REST API
       - "25520:25520"  # WebSocket
+      - "11000:11000"  # Python API (MDDS)
+      - "10000:10000"  # Python API (FPSS)
 
     # Performance optimizations (USE WITH CAUTION)
     # privileged: true
@@ -21,6 +23,8 @@ services:
     # ports:
     #   - "25510:25510"
     #   - "25520:25520"
+    #   - "11000:11000"
+    #   - "10000:10000"
 
     # Environment variables
     environment:

@@ -163,6 +163,55 @@ docker run -d \
   ghcr.io/userfrm/thetadata/terminal:latest
 ```
 
+## Performance Tuning
+
+### Network Latency
+
+Docker adds minimal network overhead - typically only 5 microseconds (μs) to network latency within a data center. For most financial applications, this is negligible compared to internet latency to ThetaData servers.
+
+### Host Network Mode (Linux Only)
+
+For absolute lowest latency, you can use host networking mode which removes NAT overhead by allowing containers to share the host's network stack:
+
+```bash
+# Host networking - bypasses Docker network layer
+docker run -d \
+  --name theta-terminal \
+  --network host \
+  -e THETA_USERNAME="your-email@example.com" \
+  -e THETA_PASSWORD="your-password" \
+  ghcr.io/userfrm/thetadata/terminal:latest
+```
+
+**Note**: With host networking, you don't need to map ports as the container uses the host's network directly.
+
+### Advanced Performance Options
+
+For maximum performance (use with caution - security implications):
+
+```yaml
+# In docker-compose.yml
+services:
+  theta-terminal:
+    # ... other settings ...
+
+    # Performance optimizations (USE WITH CAUTION)
+    # privileged: true              # Grants all capabilities
+    # network_mode: host            # Use host network stack
+    # security_opt:
+    #   - seccomp:unconfined       # Disable seccomp filters
+```
+
+**Warning**: The --privileged flag gives all capabilities to the container and allows nearly the same access to the host as processes running outside containers. Only use these options if you fully understand the security implications.
+
+### When to Consider These Options
+
+1. **Default configuration is recommended** for most users
+2. **Host networking** may help if you need sub-millisecond latency
+3. **Privileged mode** should only be used in trusted environments where security is not a concern
+
+The dominant latency factor will always be your internet connection to ThetaData servers (typically 50-100ms), not Docker overhead.
+
 ## API Examples
 
 ### REST API
@@ -207,7 +256,6 @@ async def stream_trades():
 
 asyncio.run(stream_trades())
 ```
-[ThetaData Documentation](https://http-docs.thetadata.us/)
 
 ## Building from Source
 
