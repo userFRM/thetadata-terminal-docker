@@ -36,16 +36,13 @@ if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
     exit 0
 fi
 
-# Create necessary directories
+# Create necessary directories (all possible locations ThetaTerminal might use)
 echo "Creating directories..."
 mkdir -p "${THETA_LOGS}"
 mkdir -p "${THETA_HOME}/.theta"
 mkdir -p "/root/.theta"
-
-# Ensure FILE_DIR exists
-FILE_DIR="${FILE_DIR:-/root/.theta}"
-echo "Creating FILE_DIR: ${FILE_DIR}"
-mkdir -p "${FILE_DIR}"
+mkdir -p "/root/ThetaData/ThetaTerminal"
+mkdir -p "/root/.ThetaData/ThetaTerminal"
 
 # Debug info
 echo "Current user: $(whoami)"
@@ -53,7 +50,8 @@ echo "User ID: $(id -u)"
 echo "Group ID: $(id -g)"
 echo "HOME: ${HOME}"
 echo "THETA_HOME: ${THETA_HOME}"
-echo "FILE_DIR: ${FILE_DIR}"
+echo "Directory listing of /root:"
+ls -la /root/
 
 # Build command
 CMD="java ${JAVA_OPTS} -jar ${THETA_HOME}/ThetaTerminal.jar"
@@ -78,6 +76,11 @@ if [[ "$CREDS_PROVIDED" == false ]]; then
         echo "$THETA_PASSWORD" >> "$TEMP_CREDS"
         chmod 600 "$TEMP_CREDS"
         CMD="$CMD --creds-file=$TEMP_CREDS"
+        # Cleanup function
+        cleanup() {
+            rm -f "$TEMP_CREDS"
+        }
+        trap cleanup EXIT
     elif [[ -n "$THETA_USERNAME" ]] && [[ -z "$THETA_PASSWORD" ]]; then
         CMD="$CMD $THETA_USERNAME"
     fi
@@ -114,44 +117,5 @@ echo "Command: $CMD"
 echo "=========================================="
 echo ""
 
-# Function to wait for port to be available
-wait_for_port() {
-    local port=$1
-    local max_attempts=30
-    local attempt=0
-
-    while [ $attempt -lt $max_attempts ]; do
-        if nc -z localhost $port 2>/dev/null; then
-            echo "Port $port is now available"
-            return 0
-        fi
-        attempt=$((attempt + 1))
-        sleep 1
-    done
-
-    echo "Timeout waiting for port $port"
-    return 1
-}
-
-# Start ThetaTerminal
-if command -v socat &> /dev/null; then
-    # Start ThetaTerminal in background
-    $CMD &
-    THETA_PID=$!
-
-    echo "Waiting for ThetaTerminal to start..."
-    # Wait for the HTTP port to be available
-    if wait_for_port 25510; then
-        echo "Starting port forwarders..."
-        socat TCP-LISTEN:25510,fork,reuseaddr,bind=0.0.0.0 TCP:127.0.0.1:25510 &
-        socat TCP-LISTEN:25520,fork,reuseaddr,bind=0.0.0.0 TCP:127.0.0.1:25520 &
-        socat TCP-LISTEN:11000,fork,reuseaddr,bind=0.0.0.0 TCP:127.0.0.1:11000 &
-        socat TCP-LISTEN:10000,fork,reuseaddr,bind=0.0.0.0 TCP:127.0.0.1:10000 &
-    fi
-
-    # Wait for the main process
-    wait $THETA_PID
-else
-    # No socat, just run directly
-    exec $CMD
-fi
+# Execute ThetaTerminal directly
+exec $CMD

@@ -34,52 +34,15 @@ services:
       # Timezone (optional)
       TZ: "America/New_York"
 
-      # Set FILE_DIR to root's home
-      FILE_DIR: "/root/.theta"
-
     # Volumes for persistence
     volumes:
       # Config directory
       - ./config:/opt/theta/config
       # Logs directory
       - ./logs:/opt/theta/logs
-      # Trust/certificate files - map to root's .theta
+      # Trust/certificate files - mount all possible locations
+      - ./theta-data:/root/ThetaData/ThetaTerminal
       - ./theta-data:/root/.theta
-      # Option 2: Mount credentials file
-      # - ./creds.txt:/opt/theta/creds.txt
 
     # Command (customize as needed)
     command: ["--config=/opt/theta/config/config_0.properties"]
-    # command: ["--creds-file=/opt/theta/creds.txt", "--config=/opt/theta/config/config_0.properties"]
-
-    # Health check
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:25510/v1/system/status"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-  # Example: Multiple terminal instances
-  theta-terminal-test:
-    build: .
-    image: thetadata/terminal:latest
-    container_name: theta-terminal-test
-    restart: unless-stopped
-    ports:
-      - "25511:25511"  # Different HTTP port
-      - "25521:25521"  # Different WebSocket port
-    environment:
-      THETA_USERNAME: "${THETA_USERNAME}"
-      THETA_PASSWORD: "${THETA_PASSWORD}"
-      JAVA_OPTS: "-Xms1G -Xmx4G"
-      TZ: "America/New_York"
-      FILE_DIR: "/root/.theta"
-    volumes:
-      - ./config:/opt/theta/config
-      - ./logs-test:/opt/theta/logs
-      - ./theta-data-test:/root/.theta
-    # Use config_1.properties for test server
-    command: ["--config=/opt/theta/config/config_1.properties"]
-    # Disable by default - uncomment to enable
-    profiles: ["test"]

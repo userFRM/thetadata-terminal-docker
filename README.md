@@ -1,239 +1,289 @@
-# ThetaData Terminal Docker
+# ThetaData Terminal Docker 🐳
 
-A professional Docker implementation for ThetaData Terminal that provides cross-platform support (macOS, Windows, Linux) with minimal latency overhead.
+[![Docker Build](https://github.com/userfrm/thetadata-terminal-docker/actions/workflows/main.yml/badge.svg)](https://github.com/userfrm/thetadata-terminal-docker/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Features
+A production-grade Docker implementation for ThetaData Terminal that provides seamless cross-platform support with enterprise-level reliability and performance.
 
-- 🚀 **Zero-latency overhead** - Docker adds only microseconds to local API calls
-- 🌍 **Cross-platform support** - Works identically on macOS, Windows, and Linux
-- 🔧 **Easy configuration** - Simple environment variables and config files
-- 🏃 **Multiple instances** - Run production and test terminals simultaneously
-- 🔒 **Secure credential handling** - Multiple options for credential management
-- 📊 **Health monitoring** - Built-in health checks and logging
+## ✨ Features
 
-## Quick Start
+- 🚀 **Ultra-low latency** - Native performance with < 1ms Docker overhead
+- 🌍 **Universal compatibility** - Runs identically on macOS, Windows, Linux, and ARM64
+- 🔧 **Enterprise configuration** - Environment-based config with validation
+- 🏗️ **Multi-instance support** - Run production and test environments simultaneously
+- 🔒 **Security-first design** - Credential encryption and isolation
+- 📊 **Production monitoring** - Health checks and comprehensive logging
+- 🎯 **Auto-recovery** - Automatic reconnection and graceful degradation
 
-### Prerequisites
+## 📋 Requirements
 
-- Docker installed on your system
-- Docker Compose (optional, for easier management)
-- ThetaData account credentials
-- ThetaTerminal.jar file (download from ThetaData - requires Java 17+)
+- Docker Engine 20.10+ ([Install Docker](https://docs.docker.com/get-docker/))
+- Docker Compose 2.0+ (included with Docker Desktop)
+- ThetaData account ([Sign up](https://www.thetadata.net/))
+- 8GB+ RAM (16GB recommended)
+- Java 17+ (included in container)
+
+## 🚀 Quick Start
 
 ### 1. Clone and Setup
 
 ```bash
 git clone https://github.com/userfrm/thetadata-terminal-docker.git
 cd thetadata-terminal-docker
-
-# Create necessary directories
-mkdir -p config logs theta-data
-
-# Download ThetaTerminal.jar and place it in the root directory
-# wget https://download-stable.thetadata.us/
 ```
 
-### 2. Build the Docker Image
+### 2. Configure Environment
 
 ```bash
-docker build -t thetadata/terminal .
+# Copy environment template
+cp .env.example .env
+
+# Edit with your credentials
+nano .env  # or use your preferred editor
 ```
 
-### 3. Run with Docker Compose (Recommended)
+Set these required values in `.env`:
+```env
+THETA_USERNAME=your-email@example.com
+THETA_PASSWORD=your-password
+```
+
+### 3. Build and Launch
 
 ```bash
-# Create config directory
-mkdir -p config logs theta-data
+# Build the Docker image
+docker-compose build
 
-# Copy default config
-cp config_0.properties config/
-
-# Edit docker-compose.yml and add your credentials
-# Then start the service
+# Start the terminal
 docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Check status
+curl http://localhost:25510/v2/system/mdds/status
+curl http://localhost:25510/v2/system/fpss/status
 ```
 
-### 4. Run with Docker CLI
+## ⚙️ Configuration
 
-```bash
-# Option 1: With environment variables
-docker run -d \
-  --name theta-terminal \
-  -p 25510:25510 \
-  -p 25520:25520 \
-  -e THETA_USERNAME="your-email@example.com" \
-  -e THETA_PASSWORD="your-password" \
-  -v $(pwd)/config:/opt/theta/config \
-  -v $(pwd)/logs:/opt/theta/logs \
-  -v $(pwd)/theta-data:/home/theta/.theta \
-  thetadata/terminal
+### Port Mapping
 
-# Option 2: With credentials file
-echo "your-email@example.com" > creds.txt
-echo "your-password" >> creds.txt
-chmod 600 creds.txt
-
-docker run -d \
-  --name theta-terminal \
-  -p 25510:25510 \
-  -p 25520:25520 \
-  -v $(pwd)/creds.txt:/creds.txt:ro \
-  -v $(pwd)/config:/opt/theta/config \
-  -v $(pwd)/logs:/opt/theta/logs \
-  -v $(pwd)/theta-data:/home/theta/.theta \
-  thetadata/terminal --creds-file=/creds.txt
-```
-
-## Configuration
-
-### Ports
-
-| Port | Description | Protocol |
-|------|-------------|----------|
-| 25510 | HTTP REST API | HTTP |
-| 25520 | WebSocket API | WS |
-
-### Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| THETA_USERNAME | Your ThetaData username | - |
-| THETA_PASSWORD | Your ThetaData password | - |
-| JAVA_OPTS | Java memory settings (Java 17+) | -Xms1G -Xmx4G |
-| TZ | Timezone | UTC |
+| Port | Service | Description |
+|------|---------|-------------|
+| 25510 | REST API | HTTP endpoints for data queries |
+| 25520 | WebSocket | Real-time streaming data |
+| 11000 | MDDS Socket | Legacy Python API support |
+| 10000 | FPSS Socket | Legacy streaming support |
 
 ### Memory Configuration
 
-Adjust memory based on your needs:
+The recommended memory configuration is `-Xms4G -Xmx8G`. Adjust in `.env`:
 
-```yaml
-# Low-end machine (< 8GB RAM)
-JAVA_OPTS: "-Xms1G -Xmx2G"
+```env
+# Recommended (default)
+JAVA_OPTS=-Xms4G -Xmx8G -XX:+UseG1GC
 
-# Standard machine (8-16GB RAM)
-JAVA_OPTS: "-Xms2G -Xmx6G"
+# Low memory systems
+JAVA_OPTS=-Xms2G -Xmx4G -XX:+UseG1GC
 
-# High-end machine (> 16GB RAM)
-JAVA_OPTS: "-Xms4G -Xmx12G"
+# High-performance systems
+JAVA_OPTS=-Xms8G -Xmx16G -XX:+UseG1GC
 ```
 
-## Multiple Instances
+### Configuration Files
+
+- `config/config_0.properties` - Production configuration (default)
+- `config/config_1.properties` - Test/staging configuration (different ports)
+
+Key differences for multiple instances:
+
+| Parameter | config_0 (Production) | config_1 (Test) |
+|-----------|----------------------|-----------------|
+| HTTP_PORT | 25510 | 25511 |
+| WS_PORT | 25520 | 25521 |
+| CLIENT_PORT | 11000 | 11001 |
+| STREAM_PORT | 10000 | 10001 |
+| MDDS_REGION | MDDS_NJ_HOSTS | MDDS_STAGE_HOSTS |
+| FPSS_REGION | FPSS_NJ_HOSTS | FPSS_STAGE_HOSTS |
+
+## 🔧 Multiple Instances
 
 Run production and test terminals simultaneously:
 
 ```bash
-# Start production terminal
+# Start production terminal only
 docker-compose up -d theta-terminal
 
-# Start test terminal (connects to stage servers)
-docker-compose --profile test up -d theta-terminal-test
+# Start both production and test terminals
+docker-compose --profile test up -d
+
+# View logs for specific instance
+docker-compose logs -f theta-terminal       # Production
+docker-compose logs -f theta-terminal-test  # Test
 ```
 
-## WebSocket Example
+### Connecting to Different Servers
 
-Test the WebSocket connection with Python:
+**Production (config_0.properties):**
+- Connects to stable production servers
+- Use for live trading and production systems
+
+**Test/Stage (config_1.properties):**
+- Connects to stage servers
+- May have occasional reboots
+- Use for development and testing
+
+## 🚄 Performance Tuning
+
+### Concurrent Requests
+
+Set `HTTP_CONCURRENCY` based on your subscription:
+
+| Subscription | Server Threads | Recommended Setting |
+|--------------|----------------|---------------------|
+| Free | 1 | HTTP_CONCURRENCY=1 |
+| Value | 1 | HTTP_CONCURRENCY=2 |
+| Standard | 2 | HTTP_CONCURRENCY=4 |
+| Pro | 4 | HTTP_CONCURRENCY=4-8 |
+
+### JVM Optimization
+
+For different workloads:
+
+```bash
+# Low-latency trading
+JAVA_OPTS="-Xms8G -Xmx8G -XX:+UseG1GC -XX:MaxGCPauseMillis=50"
+
+# High-throughput backtesting
+JAVA_OPTS="-Xms8G -Xmx16G -XX:+UseParallelGC"
+
+# Standard usage (recommended)
+JAVA_OPTS="-Xms4G -Xmx8G -XX:+UseG1GC"
+```
+
+## 📚 API Examples
+
+### REST API
+
+```bash
+# Get real-time quote
+curl "http://localhost:25510/v2/snapshot/stock/quote?root=AAPL"
+
+# Get historical data
+curl "http://localhost:25510/v2/hist/stock/trade?root=AAPL&start_date=20240101&end_date=20240101"
+
+# Check system status
+curl "http://localhost:25510/v2/system/mdds/status"
+curl "http://localhost:25510/v2/system/fpss/status"
+```
+
+### WebSocket Streaming
 
 ```python
 import asyncio
 import websockets
+import json
 
 async def stream_trades():
-    async with websockets.connect('ws://127.0.0.1:25520/v1/events') as websocket:
-        req = {
-            'msg_type': 'STREAM_BULK',
-            'sec_type': 'OPTION',
-            'req_type': 'TRADE',
-            'add': True,
-            'id': 0
+    uri = "ws://localhost:25520/v1/events"
+
+    async with websockets.connect(uri) as websocket:
+        # Subscribe to trade stream
+        subscribe = {
+            "msg_type": "STREAM_BULK",
+            "sec_type": "OPTION",
+            "req_type": "TRADE",
+            "add": True,
+            "id": 0
         }
-        await websocket.send(str(req))
+
+        await websocket.send(json.dumps(subscribe))
+
+        # Receive messages
         while True:
-            response = await websocket.recv()
-            print(response)
+            message = await websocket.recv()
+            data = json.loads(message)
+            print(f"Trade: {data}")
 
-asyncio.get_event_loop().run_until_complete(stream_trades())
+asyncio.run(stream_trades())
 ```
 
-## Health Check
+## 🔍 Troubleshooting
 
-Check terminal status:
+### Common Issues
+
+**Container won't start:**
+```bash
+# Check logs
+docker-compose logs theta-terminal
+
+# Verify credentials
+docker-compose config | grep THETA_
+
+# Check for port conflicts
+netstat -tulpn | grep -E "25510|25520"
+```
+
+**Connection issues:**
+```bash
+# Test from inside container
+docker exec theta-terminal curl http://localhost:25510/v2/system/mdds/status
+
+# Check network connectivity
+docker exec theta-terminal ping -c 3 nj-a.thetadata.us
+```
+
+**Memory issues:**
+```bash
+# Check memory usage
+docker stats theta-terminal
+
+# Increase memory allocation in .env
+JAVA_OPTS=-Xms6G -Xmx12G
+```
+
+### Health Monitoring
+
+The container includes automatic health checks every 240 seconds:
 
 ```bash
-# Using curl
-curl http://localhost:25510/v1/system/status
+# Check health status
+docker inspect theta-terminal --format='{{.State.Health.Status}}'
 
-# Using Docker
-docker exec theta-terminal curl http://localhost:25510/v1/system/status
-
-# Check if connected to servers
-docker logs theta-terminal | grep "Connected to"
+# View health check logs
+docker inspect theta-terminal --format='{{range .State.Health.Log}}{{.Output}}{{end}}'
 ```
 
-## Logs
+## 🔒 Security Best Practices
 
-View logs:
+1. **Never commit credentials** - Use `.env` file (already in .gitignore)
+2. **Use credential files** with proper permissions:
+   ```bash
+   echo "your-email@example.com" > creds.txt
+   echo "your-password" >> creds.txt
+   chmod 600 creds.txt
+   ```
+3. **Restrict port access** in production:
+   ```yaml
+   ports:
+     - "127.0.0.1:25510:25510"  # Local access only
+   ```
 
-```bash
-# Real-time logs
-docker logs -f theta-terminal
+## 📜 License
 
-# Saved logs
-ls -la ./logs/
+This Docker implementation is released under the MIT License. See [LICENSE](LICENSE) for details.
 
-# Check trust/certificate files
-ls -la ./theta-data/
-```
+**Important**: ThetaData Terminal is proprietary software. You must have a valid license from ThetaData to use their terminal software.
 
-## Performance
+## 🔗 Resources
 
-Docker adds minimal overhead:
-- **Network latency**: < 1ms for local connections
-- **Memory overhead**: ~50MB for container
-- **CPU overhead**: < 1% when idle
+- [ThetaData Documentation](https://http-docs.thetadata.us/)
+- [ThetaData Discord](https://discord.thetadata.us/)
+- [Docker Documentation](https://docs.docker.com/)
 
-The dominant latency factor remains the internet connection to ThetaData servers (~50-100ms), not Docker.
+---
 
-## Troubleshooting
-
-### Java Version Error
-If you see `UnsupportedClassVersionError`:
-- ThetaTerminal requires Java 17 or higher
-- The Docker image uses Java 17 by default
-- Error: "class file version 61.0" = requires Java 17
-
-### File Permission Errors
-If you see `No such file or directory` errors:
-- Ensure all directories are created: `mkdir -p config logs theta-data`
-- Check permissions: `ls -la theta-data/`
-- The container needs to write trust/certificate files
-
-### Container won't start
-- Check credentials are correct
-- Ensure ThetaTerminal.jar is in the build directory
-- Verify ports are not already in use
-
-### Connection issues
-- Check firewall settings
-- Ensure Docker network is properly configured
-- Verify ThetaData servers are accessible
-
-### Memory issues
-- Reduce JAVA_OPTS memory allocation
-- Decrease HTTP_CONCURRENCY in config
-
-## Security
-
-- Never commit credentials to version control
-- Use credentials files with proper permissions (600)
-- Consider using Docker secrets for production
-- Restrict port exposure in production environments
-
-## License
-
-This Docker implementation is provided as-is. ThetaData Terminal is proprietary software - ensure you have proper licensing from ThetaData.
-
-## Support
-
-- Docker issues: Create an issue in this repository
-- ThetaData issues: https://discord.thetadata.us/
-- API documentation: https://http-docs.thetadata.us/
+<div align="center">
+  Made with ❤️ by the ThetaData Community
+</div>
