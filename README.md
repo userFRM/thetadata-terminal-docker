@@ -1,173 +1,174 @@
-# ThetaData Terminal Docker 🐳
+# ThetaData Terminal Docker
 
-[![Docker Build](https://github.com/userfrm/thetadata-terminal-docker/actions/workflows/main.yml/badge.svg)](https://github.com/userfrm/thetadata-terminal-docker/actions)
+[![Docker Build](https://github.com/userFRM/thetadata-terminal-docker/actions/workflows/main.yml/badge.svg)](https://github.com/userFRM/thetadata-terminal-docker/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A production-grade Docker implementation for ThetaData Terminal that provides seamless cross-platform support with enterprise-level reliability and performance.
+Production-ready Docker implementation for ThetaData Terminal with multi-instance support, cross-platform compatibility, and enterprise-grade configuration.
 
-## ✨ Features
+## Features
 
-- 🚀 **Ultra-low latency** - Native performance with < 1ms Docker overhead
-- 🌍 **Universal compatibility** - Runs identically on macOS, Windows, Linux, and ARM64
-- 🔧 **Enterprise configuration** - Environment-based config with validation
-- 🏗️ **Multi-instance support** - Run production and test environments simultaneously
-- 🔒 **Security-first design** - Credential encryption and isolation
-- 📊 **Production monitoring** - Health checks and comprehensive logging
-- 🎯 **Auto-recovery** - Automatic reconnection and graceful degradation
+- 🚀 Cross-platform support (Linux, macOS, Windows, ARM64)
+- 🔧 Multiple deployment options (Docker Run, Docker Compose)
+- 🏗️ Multi-instance support for running production and test environments
+- 📊 WebSocket and REST API endpoints
+- 🔒 Secure credential management
+- ⚡ Optimized for low latency with configurable memory settings
 
-## 📋 Requirements
+## Prerequisites
 
-- Docker Engine 20.10+ ([Install Docker](https://docs.docker.com/get-docker/))
-- Docker Compose 2.0+ (included with Docker Desktop)
-- ThetaData account ([Sign up](https://www.thetadata.net/))
+- Docker Engine 20.10+
+- Docker Compose 2.0+ (optional)
+- ThetaData account ([Sign up here](https://www.thetadata.net/))
 - 8GB+ RAM (16GB recommended)
-- Java 17+ (included in container)
 
-## 🚀 Quick Start
+## Quick Start
 
-### 1. Clone and Setup
+### Option 1: Using Docker Run
 
 ```bash
-git clone https://github.com/userfrm/thetadata-terminal-docker.git
+# Pull and run with environment variables
+docker run -d \
+  --name theta-terminal \
+  -p 25510:25510 \
+  -p 25520:25520 \
+  -p 11000:11000 \
+  -p 10000:10000 \
+  -e THETA_USERNAME="your-email@example.com" \
+  -e THETA_PASSWORD="your-password" \
+  -e JAVA_OPTS="-Xms4G -Xmx8G" \
+  ghcr.io/userfrm/thetadata/terminal:latest
+
+# Check logs
+docker logs -f theta-terminal
+
+# Test connection
+curl http://localhost:25510/v2/system/mdds/status
+```
+
+### Option 2: Using Docker Compose (Recommended)
+
+1. **Clone the repository:**
+```bash
+git clone https://github.com/userFRM/thetadata-terminal-docker.git
 cd thetadata-terminal-docker
 ```
 
-### 2. Configure Environment
-
+2. **Configure credentials:**
 ```bash
-# Copy environment template
 cp .env.example .env
-
-# Edit with your credentials
-nano .env  # or use your preferred editor
+# Edit .env with your credentials
+nano .env
 ```
 
-Set these required values in `.env`:
-```env
-THETA_USERNAME=your-email@example.com
-THETA_PASSWORD=your-password
-```
-
-### 3. Build and Launch
-
+3. **Start the terminal:**
 ```bash
-# Build the Docker image
-docker-compose build
-
-# Start the terminal
 docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Check status
-curl http://localhost:25510/v2/system/mdds/status
-curl http://localhost:25510/v2/system/fpss/status
 ```
 
-## ⚙️ Configuration
+## Configuration
 
-### Port Mapping
+### Ports
 
 | Port | Service | Description |
 |------|---------|-------------|
 | 25510 | REST API | HTTP endpoints for data queries |
 | 25520 | WebSocket | Real-time streaming data |
-| 11000 | MDDS Socket | Legacy Python API support |
-| 10000 | FPSS Socket | Legacy streaming support |
+| 11000 | MDDS Socket | Query-based data access |
+| 10000 | FPSS Socket | Streaming data access |
 
-### Memory Configuration
+### Memory Settings
 
-The recommended memory configuration is `-Xms4G -Xmx8G`. Adjust in `.env`:
+Configure based on your system and usage:
 
-```env
-# Recommended (default)
-JAVA_OPTS=-Xms4G -Xmx8G -XX:+UseG1GC
+```bash
+# Standard (Recommended)
+JAVA_OPTS="-Xms4G -Xmx8G"
 
-# Low memory systems
-JAVA_OPTS=-Xms2G -Xmx4G -XX:+UseG1GC
+# High Performance
+JAVA_OPTS="-Xms8G -Xmx16G"
 
-# High-performance systems
-JAVA_OPTS=-Xms8G -Xmx16G -XX:+UseG1GC
+# Low Memory
+JAVA_OPTS="-Xms2G -Xmx4G"
 ```
 
-### Configuration Files
+### Environment Variables
 
-- `config/config_0.properties` - Production configuration (default)
-- `config/config_1.properties` - Test/staging configuration (different ports)
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `THETA_USERNAME` | Your ThetaData email | Required |
+| `THETA_PASSWORD` | Your ThetaData password | Required |
+| `JAVA_OPTS` | Java memory settings | `-Xms4G -Xmx8G` |
+| `TZ` | Timezone | `UTC` |
 
-Key differences for multiple instances:
+## Advanced Usage
 
-| Parameter | config_0 (Production) | config_1 (Test) |
-|-----------|----------------------|-----------------|
-| HTTP_PORT | 25510 | 25511 |
-| WS_PORT | 25520 | 25521 |
-| CLIENT_PORT | 11000 | 11001 |
-| STREAM_PORT | 10000 | 10001 |
-| MDDS_REGION | MDDS_NJ_HOSTS | MDDS_STAGE_HOSTS |
-| FPSS_REGION | FPSS_NJ_HOSTS | FPSS_STAGE_HOSTS |
-
-## 🔧 Multiple Instances
+### Running Multiple Instances
 
 Run production and test terminals simultaneously:
 
 ```bash
-# Start production terminal only
-docker-compose up -d theta-terminal
+# Production (default ports)
+docker run -d \
+  --name theta-prod \
+  -p 25510:25510 -p 25520:25520 \
+  -e THETA_USERNAME="your-email@example.com" \
+  -e THETA_PASSWORD="your-password" \
+  ghcr.io/userfrm/thetadata/terminal:latest
 
-# Start both production and test terminals
-docker-compose --profile test up -d
-
-# View logs for specific instance
-docker-compose logs -f theta-terminal       # Production
-docker-compose logs -f theta-terminal-test  # Test
+# Test environment (different ports)
+docker run -d \
+  --name theta-test \
+  -p 25511:25511 -p 25521:25521 \
+  -e THETA_USERNAME="your-email@example.com" \
+  -e THETA_PASSWORD="your-password" \
+  -v $(pwd)/config:/opt/theta/config \
+  ghcr.io/userfrm/thetadata/terminal:latest \
+  --config=/opt/theta/config/config_1.properties
 ```
 
-### Connecting to Different Servers
+### Using Credentials File
 
-**Production (config_0.properties):**
-- Connects to stable production servers
-- Use for live trading and production systems
-
-**Test/Stage (config_1.properties):**
-- Connects to stage servers
-- May have occasional reboots
-- Use for development and testing
-
-## 🚄 Performance Tuning
-
-### Concurrent Requests
-
-Set `HTTP_CONCURRENCY` based on your subscription:
-
-| Subscription | Server Threads | Recommended Setting |
-|--------------|----------------|---------------------|
-| Free | 1 | HTTP_CONCURRENCY=1 |
-| Value | 1 | HTTP_CONCURRENCY=2 |
-| Standard | 2 | HTTP_CONCURRENCY=4 |
-| Pro | 4 | HTTP_CONCURRENCY=4-8 |
-
-### JVM Optimization
-
-For different workloads:
+For better security, use a credentials file instead of environment variables:
 
 ```bash
-# Low-latency trading
-JAVA_OPTS="-Xms8G -Xmx8G -XX:+UseG1GC -XX:MaxGCPauseMillis=50"
+# Create credentials file
+cat > creds.txt << EOF
+your-email@example.com
+your-password
+EOF
+chmod 600 creds.txt
 
-# High-throughput backtesting
-JAVA_OPTS="-Xms8G -Xmx16G -XX:+UseParallelGC"
-
-# Standard usage (recommended)
-JAVA_OPTS="-Xms4G -Xmx8G -XX:+UseG1GC"
+# Run with credentials file
+docker run -d \
+  --name theta-terminal \
+  -p 25510:25510 -p 25520:25520 \
+  -v $(pwd)/creds.txt:/creds.txt:ro \
+  ghcr.io/userfrm/thetadata/terminal:latest \
+  --creds-file=/creds.txt
 ```
 
-## 📚 API Examples
+### Persistent Storage
+
+Mount volumes for logs and configuration:
+
+```bash
+docker run -d \
+  --name theta-terminal \
+  -p 25510:25510 -p 25520:25520 \
+  -e THETA_USERNAME="your-email@example.com" \
+  -e THETA_PASSWORD="your-password" \
+  -v $(pwd)/config:/opt/theta/config \
+  -v $(pwd)/logs:/opt/theta/logs \
+  -v $(pwd)/data:/root/.theta \
+  ghcr.io/userfrm/thetadata/terminal:latest
+```
+
+## API Examples
 
 ### REST API
 
 ```bash
-# Get real-time quote
+# Get stock quote
 curl "http://localhost:25510/v2/snapshot/stock/quote?root=AAPL"
 
 # Get historical data
@@ -189,7 +190,7 @@ async def stream_trades():
     uri = "ws://localhost:25520/v1/events"
 
     async with websockets.connect(uri) as websocket:
-        # Subscribe to trade stream
+        # Subscribe to trades
         subscribe = {
             "msg_type": "STREAM_BULK",
             "sec_type": "OPTION",
@@ -200,50 +201,68 @@ async def stream_trades():
 
         await websocket.send(json.dumps(subscribe))
 
-        # Receive messages
         while True:
             message = await websocket.recv()
-            data = json.loads(message)
-            print(f"Trade: {data}")
+            print(json.loads(message))
 
 asyncio.run(stream_trades())
 ```
+[ThetaData Documentation](https://http-docs.thetadata.us/)
 
-## 🔍 Troubleshooting
+## Building from Source
 
-### Common Issues
+If you want to build the image yourself:
 
-**Container won't start:**
 ```bash
-# Check logs
-docker-compose logs theta-terminal
+# Clone repository
+git clone https://github.com/userFRM/thetadata-terminal-docker.git
+cd thetadata-terminal-docker
 
-# Verify credentials
-docker-compose config | grep THETA_
+# Build image
+docker build -t thetadata/terminal .
 
-# Check for port conflicts
-netstat -tulpn | grep -E "25510|25520"
+# Run your built image
+docker run -d \
+  --name theta-terminal \
+  -p 25510:25510 -p 25520:25520 \
+  -e THETA_USERNAME="your-email@example.com" \
+  -e THETA_PASSWORD="your-password" \
+  thetadata/terminal
 ```
 
-**Connection issues:**
+## Troubleshooting
+
+### Container won't start
+```bash
+# Check logs
+docker logs theta-terminal
+
+# Verify credentials
+docker run -it --rm ghcr.io/userfrm/thetadata/terminal:latest --help
+```
+
+### Connection issues
 ```bash
 # Test from inside container
 docker exec theta-terminal curl http://localhost:25510/v2/system/mdds/status
 
-# Check network connectivity
-docker exec theta-terminal ping -c 3 nj-a.thetadata.us
+# Check port availability
+netstat -tulpn | grep -E "25510|25520"
 ```
 
-**Memory issues:**
+### Performance issues
 ```bash
-# Check memory usage
+# Monitor resource usage
 docker stats theta-terminal
 
-# Increase memory allocation in .env
-JAVA_OPTS=-Xms6G -Xmx12G
+# Adjust memory settings
+docker run -d \
+  --name theta-terminal \
+  -e JAVA_OPTS="-Xms8G -Xmx16G" \
+  ghcr.io/userfrm/thetadata/terminal:latest
 ```
 
-### Health Monitoring
+## Health Monitoring
 
 The container includes automatic health checks every 240 seconds:
 
@@ -251,39 +270,20 @@ The container includes automatic health checks every 240 seconds:
 # Check health status
 docker inspect theta-terminal --format='{{.State.Health.Status}}'
 
-# View health check logs
+# View health check history
 docker inspect theta-terminal --format='{{range .State.Health.Log}}{{.Output}}{{end}}'
 ```
 
-## 🔒 Security Best Practices
+## License
 
-1. **Never commit credentials** - Use `.env` file (already in .gitignore)
-2. **Use credential files** with proper permissions:
-   ```bash
-   echo "your-email@example.com" > creds.txt
-   echo "your-password" >> creds.txt
-   chmod 600 creds.txt
-   ```
-3. **Restrict port access** in production:
-   ```yaml
-   ports:
-     - "127.0.0.1:25510:25510"  # Local access only
-   ```
+This Docker implementation is MIT licensed. ThetaData Terminal itself requires a valid license from ThetaData.
 
-## 📜 License
+## Support
 
-This Docker implementation is released under the MIT License. See [LICENSE](LICENSE) for details.
-
-**Important**: ThetaData Terminal is proprietary software. You must have a valid license from ThetaData to use their terminal software.
-
-## 🔗 Resources
-
-- [ThetaData Documentation](https://http-docs.thetadata.us/)
-- [ThetaData Discord](https://discord.thetadata.us/)
-- [Docker Documentation](https://docs.docker.com/)
+- **Docker Issues**: [Create an issue](https://github.com/userFRM/thetadata-terminal-docker/issues)
+- **ThetaData Support**: [Discord](https://discord.thetadata.us/)
+- **Documentation**: [ThetaData Docs](https://http-docs.thetadata.us/)
 
 ---
 
-<div align="center">
-  Made with ❤️ by the ThetaData Community
-</div>
+Made with ❤️ by the ThetaData Community
