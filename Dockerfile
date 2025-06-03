@@ -115,9 +115,6 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh && \
     # Ensure script has Unix line endings
     sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh
 
-# Copy monitoring script if it exists
-COPY scripts/monitor.sh* /usr/local/bin/
-
 # Set up health check script
 RUN echo '#!/bin/sh\ncurl -f http://localhost:25510/v2/system/fpss/status || curl -f http://localhost:25510/v2/system/mdds/status || exit 1' \
     > /usr/local/bin/healthcheck.sh && \
