@@ -1,5 +1,4 @@
 name: Docker Build and Test
-
 on:
   push:
     branches: [ master, develop ]
@@ -7,6 +6,7 @@ on:
     branches: [ master ]
   release:
     types: [ created ]
+  workflow_dispatch:  # Allow manual triggers
 
 env:
   DOCKER_IMAGE: thetadata/terminal
@@ -46,7 +46,24 @@ jobs:
       run: |
         echo "This is a placeholder for ThetaTerminal.jar" > ThetaTerminal.jar
 
-    - name: Build Docker image
+    # Build single platform for testing
+    - name: Build Docker image for testing
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        platforms: linux/amd64
+        push: false
+        load: true
+        tags: ${{ env.DOCKER_IMAGE }}:test
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Test Docker image
+      run: |
+        docker run --rm ${{ env.DOCKER_IMAGE }}:test --help
+
+    # Build multi-platform without loading
+    - name: Build multi-platform Docker image
       uses: docker/build-push-action@v4
       with:
         context: .
@@ -54,12 +71,6 @@ jobs:
         push: false
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-
-    - name: Test Docker image
-      run: |
-        docker run --rm ${{ env.DOCKER_IMAGE }}:latest --help
 
   test-compose:
     runs-on: ubuntu-latest
